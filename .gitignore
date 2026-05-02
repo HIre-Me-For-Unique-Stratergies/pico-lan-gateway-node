@@ -1,0 +1,37 @@
+# This file keeps generated files, local machine files, firmware binaries,
+# and private configuration copies out of git.
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# MicroPython firmware/build artifacts
+*.mpy
+*.uf2
+*.bin
+*.hex
+
+# Local/private config copies
+config.local.py
+*_local.py
+.env
+
+# Logs, temporary files, and backups
+*.log
+*.tmp
+*.bak
+
+# Editor/project metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Browser/Windows shortcuts
+*.url

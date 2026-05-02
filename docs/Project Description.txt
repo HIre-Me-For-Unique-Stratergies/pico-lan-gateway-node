@@ -35,7 +35,7 @@ That lets other devices discover it automatically.
 Example announcement:
 
 NAME=gateway-node
-IP=192.168.1.50
+IP=GATEWAY_IP
 HTTP=80
 STATUS=ready
 
@@ -51,8 +51,8 @@ Is this path allowed?
 
 Example rules:
 
-allow 192.168.1.100 to access /status
-allow 192.168.1.101 to access /api
+allow LAPTOP_CLIENT_IP to access /status
+allow OTHER_CLIENT_IP to access /api
 block everyone from /admin
 deny unknown clients
 
@@ -65,9 +65,9 @@ If the request passes the rules, the Pico forwards it to a backend server.
 
 Example:
 
-client calls http://192.168.1.50/status
+client calls http://GATEWAY_IP/status
 Pico checks rules
-Pico forwards to backend 192.168.1.10:8080/status
+Pico forwards to backend BACKEND_IP:8080/status
 backend responds
 Pico returns that response to client
 
@@ -141,9 +141,9 @@ Network layout
 Example LAN:
 
 Device	Example IP
-Pico gateway	192.168.1.50
-Backend server	192.168.1.10
-Laptop client	192.168.1.100
+Pico gateway	GATEWAY_IP
+Backend server	BACKEND_IP
+Laptop client	LAPTOP_CLIENT_IP
 
 All on the same subnet.
 
@@ -186,7 +186,7 @@ Suggested features
 
 Every 5 seconds, send UDP broadcast:
 
-DEVICE=gateway-node;IP=192.168.1.50;PORT=80;MODE=proxy
+DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy
 2. HTTP endpoints on Pico
 
 Expose simple endpoints like:
@@ -201,16 +201,16 @@ Expose simple endpoints like:
 Simple table like:
 
 Source IP	Path	Action
-192.168.1.100	/status	allow
-192.168.1.100	/metrics	allow
-192.168.1.101	/test/start	allow
+LAPTOP_CLIENT_IP	/status	allow
+LAPTOP_CLIENT_IP	/metrics	allow
+OTHER_CLIENT_IP	/test/start	allow
 ANY	/admin	block
 ANY	*	deny by default
 4. Reverse proxy mapping
 
 Example fixed backend:
 
-backend IP: 192.168.1.10
+backend IP: BACKEND_IP
 backend port: 8080
 
 Mappings:
@@ -285,7 +285,7 @@ Suppose you have a backend Python server on your PC.
 
 The Pico does this:
 
-announces: “gateway-node available at 192.168.1.50”
+announces: “gateway-node available at GATEWAY_IP”
 only allows your laptop IP
 forwards /status and /api
 blocks /admin
