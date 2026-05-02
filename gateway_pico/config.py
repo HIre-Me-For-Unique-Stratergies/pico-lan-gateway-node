@@ -17,19 +17,28 @@ DISCOVERY_BROADCAST_IP = "255.255.255.255"
 DISCOVERY_PORT = 4210
 DISCOVERY_INTERVAL_SECONDS = 5
 
-# Replace with the backend Pico IP printed by Thonny or reserved in your router.
-BACKEND_HOST = "BACKEND_IP"
+# Backend server running on the second Pico.
+BACKEND_HOST = "192.168.1.107"
 BACKEND_PORT = 8080
 BACKEND_TIMEOUT_SECONDS = 5
 
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD_SHA256 = "a628029282efd81939d6452acee171fe485dd23762e96aaf7f6b08f59df255e8"
+ADMIN_SESSION_TOKEN = "ad98cef19006d62d91fc6888"
+
 DEFAULT_ACTION = "deny"
 
-# Replace LAPTOP_CLIENT_IP with the laptop/client IP allowed to use the gateway.
+# For version 1, only this laptop can use the gateway endpoints.
 RULES = [
-    ("LAPTOP_CLIENT_IP", "/status", "allow"),
-    ("LAPTOP_CLIENT_IP", "/api", "allow"),
-    ("LAPTOP_CLIENT_IP", "/metrics", "allow"),
-    ("LAPTOP_CLIENT_IP", "/discover", "allow"),
-    ("LAPTOP_CLIENT_IP", "/test/start", "allow"),
+    ("192.168.1.100", "/", "allow"),
+    ("192.168.1.100", "/login", "allow"),
+    ("192.168.1.100", "/logout", "allow"),
+    ("192.168.1.100", "/backend", "allow"),
+    ("192.168.1.100", "/status", "allow"),
+    ("192.168.1.100", "/api", "allow"),
+    ("192.168.1.100", "/metrics", "allow"),
+    ("192.168.1.100", "/discover", "allow"),
+    ("192.168.1.100", "/test/start", "allow"),
     ("ANY", "/admin", "block"),
 ]
+

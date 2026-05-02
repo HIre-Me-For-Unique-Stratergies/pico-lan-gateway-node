@@ -5,11 +5,13 @@ import machine
 import network
 
 import config
+import auth
 import discovery
 import metrics
 import proxy
 import rules
 import status_led
+import ui
 
 
 REQUEST_BUFFER_SIZE = 1024
@@ -44,7 +46,7 @@ def start_ethernet():
     return ip_address
 
 
-def send_response(client, status, content_type, body):
+def send_response(client, status, content_type, body, extra_headers=None):
     if isinstance(body, str):
         body = body.encode("utf-8")
 
@@ -53,8 +55,13 @@ def send_response(client, status, content_type, body):
         "Content-Type: %s\r\n"
         "Content-Length: %s\r\n"
         "Connection: close\r\n"
-        "\r\n"
     ) % (status, content_type, len(body))
+
+    if extra_headers:
+        for name, value in extra_headers:
+            response += "%s: %s\r\n" % (name, value)
+
+    response += "\r\n"
 
     send_all(client, response.encode("utf-8") + body)
 
@@ -71,17 +78,69 @@ def send_all(client, data):
         total_sent += sent
 
 
+def parse_query(query_string):
+    params = {}
+
+    if not query_string:
+        return params
+
+    for pair in query_string.split("&"):
+        key_value = pair.split("=", 1)
+        key = url_decode(key_value[0])
+        value = ""
+
+        if len(key_value) == 2:
+            value = url_decode(key_value[1])
+
+        params[key] = value
+
+    return params
+
+
+def url_decode(value):
+    value = value.replace("+", " ")
+    result = ""
+    index = 0
+
+    while index < len(value):
+        if value[index] == "%" and index + 2 < len(value):
+            try:
+                result += chr(int(value[index + 1:index + 3], 16))
+                index += 3
+                continue
+            except ValueError:
+                pass
+
+        result += value[index]
+        index += 1
+
+    return result
+
+
 def parse_request(request_bytes):
     request = request_bytes.decode("utf-8")
-    request_line = request.split("\r\n", 1)[0]
+    request_lines = request.split("\r\n")
+    request_line = request_lines[0]
     parts = request_line.split()
+    headers = {}
 
     if len(parts) < 2:
-        return None, None
+        return None, None, {}, {}
 
     method = parts[0]
-    path = parts[1].split("?", 1)[0]
-    return method, path
+    target_parts = parts[1].split("?", 1)
+    path = target_parts[0]
+    query = {}
+
+    if len(target_parts) == 2:
+        query = parse_query(target_parts[1])
+
+    for line in request_lines[1:]:
+        if ":" in line:
+            name, value = line.split(":", 1)
+            headers[name.strip().lower()] = value.strip()
+
+    return method, path, query, headers
 
 
 def check_rule(client_ip, path):
@@ -96,28 +155,58 @@ def check_rule(client_ip, path):
 
 
 def handle_discover(client, ip_address):
-    body = discovery.build_message(ip_address) + "\n"
-    send_response(client, "200 OK", "text/plain", body)
+    body = discovery.build_message(ip_address)
+    send_response(client, "200 OK", "text/html", ui.discover_page(body))
+
+
+def handle_home(client, ip_address):
+    send_response(client, "200 OK", "text/html", ui.dashboard_page(ip_address))
+
+
+def handle_login(client, query):
+    username = query.get("username", "")
+    password = query.get("password", "")
+
+    if not username and not password:
+        send_response(client, "200 OK", "text/html", ui.login_page())
+        return
+
+    if auth.credentials_are_valid(username, password):
+        send_response(
+            client,
+            "302 Found",
+            "text/plain",
+            "login_ok\n",
+            [
+                ("Location", "/"),
+                ("Set-Cookie", auth.session_cookie_header()),
+            ],
+        )
+        return
+
+    send_response(client, "401 Unauthorized", "text/html", ui.login_page(True))
+
+
+def handle_logout(client):
+    send_response(
+        client,
+        "302 Found",
+        "text/plain",
+        "logout_ok\n",
+        [
+            ("Location", "/login"),
+            ("Set-Cookie", auth.logout_cookie_header()),
+        ],
+    )
 
 
 def handle_metrics(client):
-    send_response(client, "200 OK", "text/plain", metrics.as_text())
+    send_response(client, "200 OK", "text/html", ui.metrics_page(metrics.snapshot()))
 
 
 def handle_load_test(client):
     result = proxy.run_load_test("/status", 10)
-    body = (
-        "requests=%s\n"
-        "successes=%s\n"
-        "failures=%s\n"
-        "elapsed_ms=%s\n"
-    ) % (
-        result["requests"],
-        result["successes"],
-        result["failures"],
-        result["elapsed_ms"],
-    )
-    send_response(client, "200 OK", "text/plain", body)
+    send_response(client, "200 OK", "text/html", ui.load_test_page(result))
 
 
 def handle_proxy(client, path):
@@ -138,7 +227,7 @@ def handle_client(client, address, ip_address):
     try:
         client.settimeout(CLIENT_TIMEOUT_SECONDS)
         request_bytes = client.recv(REQUEST_BUFFER_SIZE)
-        method, path = parse_request(request_bytes)
+        method, path, query, headers = parse_request(request_bytes)
 
         if method != "GET" or path is None:
             send_response(client, "400 Bad Request", "text/plain", "bad_request\n")
@@ -150,12 +239,22 @@ def handle_client(client, address, ip_address):
             status_led.request_handled()
             return
 
-        if path == "/discover":
+        if path == "/login":
+            handle_login(client, query)
+        elif path == "/logout":
+            handle_logout(client)
+        elif not auth.is_authenticated(headers):
+            send_response(client, "200 OK", "text/html", ui.login_page())
+        elif path == "/discover":
             handle_discover(client, ip_address)
+        elif path == "/":
+            handle_home(client, ip_address)
         elif path == "/metrics":
             handle_metrics(client)
         elif path == "/test/start":
             handle_load_test(client)
+        elif path == "/backend":
+            handle_proxy(client, "/")
         elif path == "/status" or path == "/api":
             handle_proxy(client, path)
         else:

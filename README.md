@@ -211,6 +211,8 @@ The rules should allow the laptop client IP:
 
 ```python
 RULES = [
+    ("LAPTOP_CLIENT_IP", "/", "allow"),
+    ("LAPTOP_CLIENT_IP", "/backend", "allow"),
     ("LAPTOP_CLIENT_IP", "/status", "allow"),
     ("LAPTOP_CLIENT_IP", "/api", "allow"),
     ("LAPTOP_CLIENT_IP", "/metrics", "allow"),
@@ -267,8 +269,10 @@ Gateway Pico paths:
 
 | Endpoint | Purpose |
 | --- | --- |
+| `http://GATEWAY_IP/` | Gateway dashboard page with navigation links. |
 | `http://GATEWAY_IP/discover` | Shows gateway identity, IP, port, and mode. |
 | `http://GATEWAY_IP/metrics` | Shows gateway counters and diagnostics. |
+| `http://GATEWAY_IP/backend` | Proxies to the backend Pico webpage. |
 | `http://GATEWAY_IP/status` | Proxies to backend Pico `/status`. |
 | `http://GATEWAY_IP/api` | Proxies to backend Pico `/api`. |
 | `http://GATEWAY_IP/test/start` | Runs a small backend load test from the gateway Pico. |
@@ -278,6 +282,7 @@ Backend Pico paths:
 
 | Endpoint | Purpose |
 | --- | --- |
+| `http://BACKEND_IP:8080/` | Direct backend webpage. Should be blocked from the laptop. |
 | `http://BACKEND_IP:8080/status` | Direct backend status path. Should be blocked from the laptop. |
 | `http://BACKEND_IP:8080/api` | Direct backend API path. Should be blocked from the laptop. |
 | `http://BACKEND_IP:8080/discover` | Direct backend discovery path. Should be blocked from the laptop. |
@@ -326,6 +331,7 @@ Laptop:       LAPTOP_CLIENT_IP
 http://BACKEND_IP:8080/status
 http://BACKEND_IP:8080/api
 http://BACKEND_IP:8080/discover
+http://BACKEND_IP:8080/
 ```
 
 Expected direct backend response from the laptop:
@@ -341,6 +347,7 @@ blocked
 ```text
 http://GATEWAY_IP/discover
 http://GATEWAY_IP/metrics
+http://GATEWAY_IP/
 ```
 
 10. Test proxying through the gateway:
@@ -348,6 +355,7 @@ http://GATEWAY_IP/metrics
 ```text
 http://GATEWAY_IP/status
 http://GATEWAY_IP/api
+http://GATEWAY_IP/backend
 ```
 
 11. Run the gateway load test from the browser:

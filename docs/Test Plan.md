@@ -24,6 +24,7 @@ Recommended startup order:
 Backend direct access test:
 
 ```text
+http://BACKEND_IP:8080/
 http://BACKEND_IP:8080/status
 http://BACKEND_IP:8080/api
 http://BACKEND_IP:8080/discover
@@ -38,6 +39,7 @@ blocked
 Gateway local tests:
 
 ```text
+http://GATEWAY_IP/
 http://GATEWAY_IP/discover
 http://GATEWAY_IP/metrics
 ```
@@ -51,6 +53,7 @@ DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy
 Gateway proxy tests:
 
 ```text
+http://GATEWAY_IP/backend
 http://GATEWAY_IP/status
 http://GATEWAY_IP/api
 ```

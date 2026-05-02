@@ -17,6 +17,10 @@ config.local.py
 *_local.py
 .env
 
+# Device configs contain local LAN IPs and should be copied from examples.
+gateway_pico/config.py
+backend_pico/config.py
+
 # Logs, temporary files, and backups
 *.log
 *.tmp
