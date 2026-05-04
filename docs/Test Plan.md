@@ -40,11 +40,10 @@ Gateway local tests:
 
 ```text
 http://GATEWAY_IP/
-http://GATEWAY_IP/discover
 http://GATEWAY_IP/metrics
 ```
 
-Expected `/discover` shape:
+Expected dashboard identity section:
 
 ```text
 DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy

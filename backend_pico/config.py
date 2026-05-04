@@ -5,7 +5,8 @@ HTTP_HOST = "0.0.0.0"
 HTTP_PORT = 8080
 
 # Only the gateway Pico should be allowed to call this backend directly.
-ALLOWED_GATEWAY_IP = "192.168.1.106"
+# Replace GATEWAY_IP with the gateway Pico IP from Thonny or the router reservation.
+ALLOWED_GATEWAY_IP = "GATEWAY_IP"
 
 # W5500 SPI wiring. Keep this the same on the gateway and backend Picos.
 SPI_ID = 0
@@ -15,4 +16,3 @@ SPI_MOSI_PIN = 19
 SPI_MISO_PIN = 16
 W5500_CS_PIN = 17
 W5500_RST_PIN = 20
-

@@ -44,8 +44,9 @@ The gateway Pico exposes browser endpoints such as:
 http://GATEWAY_IP/status
 http://GATEWAY_IP/api
 http://GATEWAY_IP/metrics
-http://GATEWAY_IP/discover
 ```
+
+The main gateway dashboard also shows the gateway identity string, including device name, IP, port, and mode.
 
 The backend Pico runs its own HTTP server on port `8080`, but it only accepts requests from the gateway Pico.
 

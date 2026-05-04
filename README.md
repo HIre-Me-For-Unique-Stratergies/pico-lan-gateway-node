@@ -216,7 +216,6 @@ RULES = [
     ("LAPTOP_CLIENT_IP", "/status", "allow"),
     ("LAPTOP_CLIENT_IP", "/api", "allow"),
     ("LAPTOP_CLIENT_IP", "/metrics", "allow"),
-    ("LAPTOP_CLIENT_IP", "/discover", "allow"),
     ("LAPTOP_CLIENT_IP", "/test/start", "allow"),
     ("ANY", "/admin", "block"),
 ]
@@ -269,8 +268,7 @@ Gateway Pico paths:
 
 | Endpoint | Purpose |
 | --- | --- |
-| `http://GATEWAY_IP/` | Gateway dashboard page with navigation links. |
-| `http://GATEWAY_IP/discover` | Shows gateway identity, IP, port, and mode. |
+| `http://GATEWAY_IP/` | Gateway dashboard page with navigation links and gateway identity details. |
 | `http://GATEWAY_IP/metrics` | Shows gateway counters and diagnostics. |
 | `http://GATEWAY_IP/backend` | Proxies to the backend Pico webpage. |
 | `http://GATEWAY_IP/status` | Proxies to backend Pico `/status`. |
@@ -298,7 +296,7 @@ Normal use should go through the gateway paths. Direct backend paths are blocked
 | DHCP | Both Picos, provided by the router | Gives each Pico an IP address. Router DHCP reservations keep those IPs stable. |
 | IPv4 | Laptop, gateway Pico, backend Pico | Main addressing system, using the `GATEWAY_IP`, `BACKEND_IP`, and `LAPTOP_CLIENT_IP` values from your LAN. |
 | TCP | Browser to gateway, gateway to backend | Reliable connection used by HTTP. |
-| HTTP | Browser/gateway/backend paths | Main request/response protocol for `/status`, `/api`, `/metrics`, `/discover`, and `/test/start`. |
+| HTTP | Browser/gateway/backend paths | Main request/response protocol for `/`, `/status`, `/api`, `/metrics`, and `/test/start`. |
 | UDP broadcast | Gateway discovery | Gateway sends discovery packets to `255.255.255.255` on UDP port `4210`. |
 
 Protocols not used:
@@ -345,9 +343,8 @@ blocked
 9. Test gateway local endpoints:
 
 ```text
-http://GATEWAY_IP/discover
-http://GATEWAY_IP/metrics
 http://GATEWAY_IP/
+http://GATEWAY_IP/metrics
 ```
 
 10. Test proxying through the gateway:
@@ -370,7 +367,7 @@ http://GATEWAY_IP/test/start
 http://GATEWAY_IP/metrics
 ```
 
-Expected `/discover` response:
+Expected gateway dashboard identity section:
 
 ```text
 DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy

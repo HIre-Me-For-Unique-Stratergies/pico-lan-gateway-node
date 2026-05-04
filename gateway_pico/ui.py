@@ -15,10 +15,8 @@ inset:0;
 z-index:-1;
 background:
 linear-gradient(rgba(0,255,234,.06) 1px,transparent 1px),
-linear-gradient(90deg,rgba(255,42,231,.06) 1px,transparent 1px),
-radial-gradient(circle at 20% 20%,rgba(0,255,234,.22),transparent 28%),
-radial-gradient(circle at 82% 70%,rgba(255,42,231,.16),transparent 30%);
-background-size:36px 36px,36px 36px,100% 100%,100% 100%;
+linear-gradient(90deg,rgba(255,42,231,.06) 1px,transparent 1px);
+background-size:36px 36px;
 }
 main{max-width:900px;margin:0 auto;padding:28px}
 .shell{
@@ -27,7 +25,22 @@ background:rgba(7,9,18,.9);
 box-shadow:0 0 28px rgba(35,246,255,.18),inset 0 0 28px rgba(255,42,231,.06);
 padding:24px;
 }
-.topbar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:20px}
+.topbar{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.admin-nav{
+display:flex;
+gap:8px;
+align-items:center;
+flex-wrap:wrap;
+justify-content:flex-end;
+max-width:520px;
+}
+.admin-nav a{
+display:inline-block;
+padding:9px 11px;
+font-size:12px;
+text-transform:uppercase;
+}
+.admin-nav .logout{border-color:#334056;color:#8fb8c0}
 .eyebrow{margin:0 0 8px;color:#23f6ff;font-size:12px;text-transform:uppercase}
 h1{margin:0;font-size:30px;line-height:1.05;color:#e7fbff;text-shadow:2px 0 #ff2ae7,-2px 0 #23f6ff}
 h2{margin:24px 0 10px;font-size:16px;color:#23f6ff}
@@ -43,12 +56,16 @@ background:#0b1020;
 }
 a:hover,.button:hover{border-color:#ff2ae7;color:#ffb7f6}
 code,.value{background:#10172d;padding:2px 6px;color:#23f6ff}
-.logout{border-color:#334056;color:#8fb8c0}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:18px}
 .stat{border:1px solid #26364f;background:#0b1020;padding:14px}
 .label{display:block;color:#8fb8c0;font-size:12px;text-transform:uppercase}
 .number{display:block;margin-top:6px;font-size:24px;color:#23f6ff}
 pre{overflow:auto;padding:14px;border:1px solid #26364f;background:#050814;color:#e7fbff}
+@media(max-width:640px){
+.topbar{display:block}
+.admin-nav{justify-content:flex-start;margin-top:14px}
+.admin-nav a{flex:1 1 130px;text-align:center}
+}
 """
 
 
@@ -163,7 +180,20 @@ main{padding:0}
 """ % (page_style().replace("%", "%%"), error_html)
 
 
-def dashboard_page(ip_address):
+def discovery_rows(message):
+    rows = ""
+    for part in message.split(";"):
+        key_value = part.split("=", 1)
+        if len(key_value) == 2:
+            rows += '<div class="stat"><span class="label">%s</span><span class="number">%s</span></div>' % (
+                key_value[0],
+                key_value[1],
+            )
+
+    return rows
+
+
+def dashboard_page(ip_address, discovery_message):
     return """<!doctype html>
 <html>
 <head>
@@ -178,38 +208,36 @@ def dashboard_page(ip_address):
 <section class="shell">
 <div class="topbar">
 <div>
-<p class="eyebrow">Admin Console</p>
+<p class="eyebrow">LAN Gateway Node</p>
 <h1>LAN Gateway Node</h1>
 </div>
+<nav class="admin-nav" aria-label="Admin Console">
+<a href="/">Dashboard</a>
 <a class="logout" href="/logout">Logout</a>
+</nav>
 </div>
 <p>Gateway <code>%s</code> is online. Select a protected route.</p>
 <section class="grid">
-<a href="/discover">Gateway Discovery</a>
 <a href="/metrics">Gateway Metrics</a>
 <a href="/test/start">Run Load Test</a>
 <a href="/backend">Backend Page</a>
 <a href="/status">Backend Status</a>
 <a href="/api">Backend API</a>
 </section>
+<h2>Gateway Identity</h2>
+<section class="stats">%s</section>
+<h2>Discovery Message</h2>
+<pre>%s</pre>
 </section>
 </main>
 </body>
 </html>
-""" % (page_style().replace("%", "%%"), ip_address)
-
-
-def discover_page(message):
-    rows = ""
-    for part in message.split(";"):
-        key_value = part.split("=", 1)
-        if len(key_value) == 2:
-            rows += '<div class="stat"><span class="label">%s</span><span class="number">%s</span></div>' % (
-                key_value[0],
-                key_value[1],
-            )
-
-    return info_page("Gateway Discovery", "Broadcast identity for this gateway node.", rows, message)
+""" % (
+        page_style().replace("%", "%%"),
+        ip_address,
+        discovery_rows(discovery_message),
+        discovery_message,
+    )
 
 
 def metrics_page(data):
@@ -256,7 +284,10 @@ def info_page(title, subtitle, stat_rows, raw_text):
 <p class="eyebrow">LAN Gateway Node</p>
 <h1>%s</h1>
 </div>
-<a class="logout" href="/">Dashboard</a>
+<nav class="admin-nav" aria-label="Admin Console">
+<a href="/">Dashboard</a>
+<a class="logout" href="/logout">Logout</a>
+</nav>
 </div>
 <p>%s</p>
 <section class="stats">%s</section>

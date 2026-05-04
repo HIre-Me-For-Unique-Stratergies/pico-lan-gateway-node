@@ -191,9 +191,9 @@ DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy
 
 Expose simple endpoints like:
 
+/ -> dashboard with local device info
 /status → proxy-safe status page
 /metrics → proxy/load stats
-/discover → local device info
 /test/start → begin load test
 /test/stop → stop load test
 3. Rule engine

@@ -154,13 +154,9 @@ def check_rule(client_ip, path):
     return True
 
 
-def handle_discover(client, ip_address):
-    body = discovery.build_message(ip_address)
-    send_response(client, "200 OK", "text/html", ui.discover_page(body))
-
-
 def handle_home(client, ip_address):
-    send_response(client, "200 OK", "text/html", ui.dashboard_page(ip_address))
+    discovery_message = discovery.build_message(ip_address)
+    send_response(client, "200 OK", "text/html", ui.dashboard_page(ip_address, discovery_message))
 
 
 def handle_login(client, query):
@@ -245,8 +241,6 @@ def handle_client(client, address, ip_address):
             handle_logout(client)
         elif not auth.is_authenticated(headers):
             send_response(client, "200 OK", "text/html", ui.login_page())
-        elif path == "/discover":
-            handle_discover(client, ip_address)
         elif path == "/":
             handle_home(client, ip_address)
         elif path == "/metrics":
