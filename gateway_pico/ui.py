@@ -193,7 +193,27 @@ def discovery_rows(message):
     return rows
 
 
-def dashboard_page(ip_address, discovery_message):
+def metric_rows(data):
+    rows = ""
+    for key in sorted(data):
+        rows += '<div class="stat"><span class="label">%s</span><span class="number">%s</span></div>' % (
+            key.replace("_", " "),
+            data[key],
+        )
+
+    return rows
+
+
+def escape_html(value):
+    return (
+        value.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def dashboard_page(ip_address, discovery_message, metric_data):
     return """<!doctype html>
 <html>
 <head>
@@ -208,7 +228,6 @@ def dashboard_page(ip_address, discovery_message):
 <section class="shell">
 <div class="topbar">
 <div>
-<p class="eyebrow">LAN Gateway Node</p>
 <h1>LAN Gateway Node</h1>
 </div>
 <nav class="admin-nav" aria-label="Admin Console">
@@ -218,12 +237,13 @@ def dashboard_page(ip_address, discovery_message):
 </div>
 <p>Gateway <code>%s</code> is online. Select a protected route.</p>
 <section class="grid">
-<a href="/metrics">Gateway Metrics</a>
 <a href="/test/start">Run Load Test</a>
-<a href="/backend">Backend Page</a>
+<a href="/backend">Backend Data</a>
 <a href="/status">Backend Status</a>
 <a href="/api">Backend API</a>
 </section>
+<h2>Gateway Metrics</h2>
+<section class="stats">%s</section>
 <h2>Gateway Identity</h2>
 <section class="stats">%s</section>
 <h2>Discovery Message</h2>
@@ -235,20 +255,33 @@ def dashboard_page(ip_address, discovery_message):
 """ % (
         page_style().replace("%", "%%"),
         ip_address,
+        metric_rows(metric_data),
         discovery_rows(discovery_message),
         discovery_message,
     )
 
 
 def metrics_page(data):
-    rows = ""
-    for key in sorted(data):
-        rows += '<div class="stat"><span class="label">%s</span><span class="number">%s</span></div>' % (
-            key.replace("_", " "),
-            data[key],
-        )
+    return info_page("Gateway Metrics", "Current counters and diagnostics.", metric_rows(data), None)
 
-    return info_page("Gateway Metrics", "Current counters and diagnostics.", rows, None)
+
+def backend_summary_page(status_text, api_text):
+    raw = (
+        "<h2>Status Data</h2><pre>%s</pre>"
+        "<h2>API Data</h2><pre>%s</pre>"
+    ) % (escape_html(status_text), escape_html(api_text))
+
+    return info_page(
+        "Backend Data",
+        "Gateway-rendered view of protected backend data.",
+        "",
+        None,
+        raw,
+    )
+
+
+def backend_data_page(title, subtitle, raw_text):
+    return info_page(title, subtitle, "", escape_html(raw_text))
 
 
 def load_test_page(result):
@@ -262,10 +295,14 @@ def load_test_page(result):
     return info_page("Load Test Result", "Backend load test completed.", rows, None)
 
 
-def info_page(title, subtitle, stat_rows, raw_text):
+def info_page(title, subtitle, stat_rows, raw_text, extra_html=""):
     raw = ""
     if raw_text:
         raw = "<h2>Raw Output</h2><pre>%s</pre>" % raw_text
+
+    stats = ""
+    if stat_rows:
+        stats = '<section class="stats">%s</section>' % stat_rows
 
     return """<!doctype html>
 <html>
@@ -290,7 +327,8 @@ def info_page(title, subtitle, stat_rows, raw_text):
 </nav>
 </div>
 <p>%s</p>
-<section class="stats">%s</section>
+%s
+%s
 %s
 </section>
 </main>
@@ -301,6 +339,7 @@ def info_page(title, subtitle, stat_rows, raw_text):
         page_style().replace("%", "%%"),
         title,
         subtitle,
-        stat_rows,
+        stats,
         raw,
+        extra_html,
     )

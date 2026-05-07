@@ -98,67 +98,6 @@ def discover_body(ip_address):
     )
 
 
-def home_body(ip_address):
-    uptime_seconds = int(time.time() - START_TIME)
-    return """<!doctype html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Backend Pico</title>
-<style>
-*{box-sizing:border-box}
-body{
-margin:0;
-min-height:100vh;
-font-family:Arial,Helvetica,sans-serif;
-background:#070912;
-color:#e7fbff;
-}
-body:before{
-content:"";
-position:fixed;
-inset:0;
-z-index:-1;
-background:
-linear-gradient(rgba(0,255,234,.06) 1px,transparent 1px),
-linear-gradient(90deg,rgba(255,42,231,.06) 1px,transparent 1px);
-background-size:36px 36px;
-}
-main{max-width:900px;margin:0 auto;padding:28px}
-.shell{
-border:1px solid #23f6ff;
-background:rgba(7,9,18,.9);
-box-shadow:0 0 28px rgba(35,246,255,.18),inset 0 0 28px rgba(255,42,231,.06);
-padding:24px;
-}
-.eyebrow{margin:0 0 8px;color:#23f6ff;font-size:12px;text-transform:uppercase}
-h1{margin:0 0 12px;font-size:30px;text-shadow:2px 0 #ff2ae7,-2px 0 #23f6ff}
-p{color:#b7dbe1;line-height:1.45}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:20px}
-a{display:block;padding:14px 16px;border:1px solid #23f6ff;color:#fff;text-decoration:none;background:#0b1020}
-a:hover{border-color:#ff2ae7;color:#ffb7f6}
-code{background:#10172d;padding:2px 6px;color:#23f6ff}
-</style>
-</head>
-<body>
-<main>
-<section class="shell">
-<p class="eyebrow">Protected Backend</p>
-<h1>Backend Pico</h1>
-<p><code>%s</code> is running on <code>%s:%s</code>.</p>
-<p>Uptime: <code>%s seconds</code></p>
-<section class="grid">
-<a href="/status">Status JSON</a>
-<a href="/api">API JSON</a>
-<a href="/discover">Discovery text</a>
-</section>
-</section>
-</main>
-</body>
-</html>
-""" % (config.DEVICE_NAME, ip_address, config.HTTP_PORT, uptime_seconds)
-
-
 def is_allowed_client(client_ip):
     return client_ip == config.ALLOWED_GATEWAY_IP
 
@@ -184,7 +123,7 @@ def handle_client(client, address, ip_address):
             return
 
         if path == "/":
-            send_response(client, "200 OK", "text/html", home_body(ip_address))
+            send_response(client, "200 OK", "application/json", status_body())
         elif path == "/status":
             send_response(client, "200 OK", "application/json", status_body())
         elif path == "/api":

@@ -6,7 +6,7 @@ Version 1 of this project uses two Raspberry Pi Pico devices on the LAN:
 - Pico 2 is the backend server.
 - The laptop is only the client/test machine.
 
-The gateway Pico announces itself, accepts HTTP requests, checks simple allow/block rules, forwards approved requests to the backend Pico, and exposes gateway metrics.
+The gateway Pico announces itself, accepts HTTP requests, checks simple allow/block rules, renders the browser UI, fetches data from the backend Pico, and exposes gateway metrics.
 
 This is a policy gateway for traffic sent to the Pico. It is not a full network firewall.
 
@@ -82,8 +82,8 @@ LAN Gateway Node/
 
 | Device | Files copied to device | Responsibility |
 | --- | --- | --- |
-| Gateway Pico | files from `gateway_pico/` | W5500 Ethernet, discovery, rule checks, HTTP gateway, proxying, metrics, load test. |
-| Backend Pico | files from `backend_pico/` | W5500 Ethernet and simple HTTP backend on port `8080`. |
+| Gateway Pico | files from `gateway_pico/` | W5500 Ethernet, discovery, rule checks, browser UI, backend data fetches, metrics, load test. |
+| Backend Pico | files from `backend_pico/` | W5500 Ethernet and data-only HTTP backend on port `8080`. |
 | Laptop client | none | Browser testing only. |
 
 ## MicroPython Firmware
@@ -234,7 +234,7 @@ ALLOWED_GATEWAY_IP = "GATEWAY_IP"
 
 Reserve the backend Pico MAC address in the router portal so this device always receives the IP used by `BACKEND_HOST`.
 
-The backend only accepts requests from `ALLOWED_GATEWAY_IP`. This prevents the laptop from bypassing the gateway and calling the backend directly.
+The backend only accepts requests from `ALLOWED_GATEWAY_IP` and returns data only. This prevents the laptop from bypassing the gateway and keeps all user-facing UI on the gateway.
 
 ## Copy Files To Each Pico
 
@@ -268,11 +268,11 @@ Gateway Pico paths:
 
 | Endpoint | Purpose |
 | --- | --- |
-| `http://GATEWAY_IP/` | Gateway dashboard page with navigation links and gateway identity details. |
-| `http://GATEWAY_IP/metrics` | Shows gateway counters and diagnostics. |
-| `http://GATEWAY_IP/backend` | Proxies to the backend Pico webpage. |
-| `http://GATEWAY_IP/status` | Proxies to backend Pico `/status`. |
-| `http://GATEWAY_IP/api` | Proxies to backend Pico `/api`. |
+| `http://GATEWAY_IP/` | Gateway dashboard page with navigation links, gateway metrics, and gateway identity details. |
+| `http://GATEWAY_IP/metrics` | Shows gateway counters and diagnostics as a standalone page. |
+| `http://GATEWAY_IP/backend` | Gateway-rendered page showing protected backend data. |
+| `http://GATEWAY_IP/status` | Gateway-rendered page using backend Pico `/status` data. |
+| `http://GATEWAY_IP/api` | Gateway-rendered page using backend Pico `/api` data. |
 | `http://GATEWAY_IP/test/start` | Runs a small backend load test from the gateway Pico. |
 | `http://GATEWAY_IP/admin` | Intentionally blocked by the gateway rules. |
 
@@ -280,10 +280,10 @@ Backend Pico paths:
 
 | Endpoint | Purpose |
 | --- | --- |
-| `http://BACKEND_IP:8080/` | Direct backend webpage. Should be blocked from the laptop. |
-| `http://BACKEND_IP:8080/status` | Direct backend status path. Should be blocked from the laptop. |
-| `http://BACKEND_IP:8080/api` | Direct backend API path. Should be blocked from the laptop. |
-| `http://BACKEND_IP:8080/discover` | Direct backend discovery path. Should be blocked from the laptop. |
+| `http://BACKEND_IP:8080/` | Backend status JSON data. Should be blocked from the laptop. |
+| `http://BACKEND_IP:8080/status` | Backend status JSON data. Should be blocked from the laptop. |
+| `http://BACKEND_IP:8080/api` | Backend API JSON data. Should be blocked from the laptop. |
+| `http://BACKEND_IP:8080/discover` | Backend discovery text data. Should be blocked from the laptop. |
 
 Normal use should go through the gateway paths. Direct backend paths are blocked from the laptop so the gateway cannot be bypassed.
 
@@ -347,7 +347,7 @@ http://GATEWAY_IP/
 http://GATEWAY_IP/metrics
 ```
 
-10. Test proxying through the gateway:
+10. Test gateway-rendered backend data pages:
 
 ```text
 http://GATEWAY_IP/status
@@ -373,7 +373,7 @@ Expected gateway dashboard identity section:
 DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy
 ```
 
-Expected proxied `/status` response:
+Expected backend status data shown inside the gateway `/status` page:
 
 ```json
 {"service":"lan-gateway-backend-pico","device":"backend-node","status":"ready","uptime_seconds":123}
@@ -394,4 +394,4 @@ All normal testing is done from the browser. The laptop does not need to run a P
 
 ## Short Definition
 
-LAN Gateway Node is a two-Pico LAN gateway system where one Pico protects and proxies access to a second Pico backend service, while the laptop acts as the client.
+LAN Gateway Node is a two-Pico LAN gateway system where one Pico is the front-end gateway and policy gate, while the second Pico is a protected data-only backend service.

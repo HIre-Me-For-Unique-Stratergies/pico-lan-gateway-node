@@ -156,7 +156,12 @@ def check_rule(client_ip, path):
 
 def handle_home(client, ip_address):
     discovery_message = discovery.build_message(ip_address)
-    send_response(client, "200 OK", "text/html", ui.dashboard_page(ip_address, discovery_message))
+    send_response(
+        client,
+        "200 OK",
+        "text/html",
+        ui.dashboard_page(ip_address, discovery_message, metrics.snapshot()),
+    )
 
 
 def handle_login(client, query):
@@ -205,15 +210,41 @@ def handle_load_test(client):
     send_response(client, "200 OK", "text/html", ui.load_test_page(result))
 
 
-def handle_proxy(client, path):
+def fetch_backend_text(path):
     try:
-        print("Proxying %s to %s:%s" % (path, config.BACKEND_HOST, config.BACKEND_PORT))
-        response = proxy.forward_get(path)
+        text = proxy.fetch_text(path)
         metrics.increment("proxied_requests")
-        send_all(client, response)
+        return text
     except Exception as exc:
         metrics.increment("proxy_failures")
         status_led.error()
+        raise exc
+
+
+def handle_backend_summary(client):
+    try:
+        status_text = fetch_backend_text("/status")
+        api_text = fetch_backend_text("/api")
+        send_response(
+            client,
+            "200 OK",
+            "text/html",
+            ui.backend_summary_page(status_text, api_text),
+        )
+    except Exception as exc:
+        send_response(client, "502 Bad Gateway", "text/plain", "proxy_error=%s\n" % exc)
+
+
+def handle_backend_data(client, path, title):
+    try:
+        text = fetch_backend_text(path)
+        send_response(
+            client,
+            "200 OK",
+            "text/html",
+            ui.backend_data_page(title, "Gateway-rendered backend data from %s." % path, text),
+        )
+    except Exception as exc:
         send_response(client, "502 Bad Gateway", "text/plain", "proxy_error=%s\n" % exc)
 
 
@@ -248,9 +279,11 @@ def handle_client(client, address, ip_address):
         elif path == "/test/start":
             handle_load_test(client)
         elif path == "/backend":
-            handle_proxy(client, "/")
-        elif path == "/status" or path == "/api":
-            handle_proxy(client, path)
+            handle_backend_summary(client)
+        elif path == "/status":
+            handle_backend_data(client, "/status", "Backend Status")
+        elif path == "/api":
+            handle_backend_data(client, "/api", "Backend API")
         else:
             send_response(client, "404 Not Found", "text/plain", "not_found\n")
 

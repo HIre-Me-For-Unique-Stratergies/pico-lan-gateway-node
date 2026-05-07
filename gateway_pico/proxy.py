@@ -63,6 +63,23 @@ def forward_get(path):
         sock.close()
 
 
+def response_body(response):
+    parts = response.split(b"\r\n\r\n", 1)
+    if len(parts) == 2:
+        return parts[1]
+
+    return response
+
+
+def fetch_text(path):
+    response = forward_get(path)
+
+    if not (response.startswith(b"HTTP/1.0 200") or response.startswith(b"HTTP/1.1 200")):
+        raise OSError("backend returned non-200 response")
+
+    return response_body(response).decode("utf-8")
+
+
 def run_load_test(path="/status", request_count=10):
     successes = 0
     failures = 0
