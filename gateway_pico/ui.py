@@ -61,6 +61,9 @@ code,.value{background:#10172d;padding:2px 6px;color:#23f6ff}
 .label{display:block;color:#8fb8c0;font-size:12px;text-transform:uppercase}
 .number{display:block;margin-top:6px;font-size:24px;color:#23f6ff}
 pre{overflow:auto;padding:14px;border:1px solid #26364f;background:#050814;color:#e7fbff}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{padding:8px;border:1px solid #26364f;text-align:left;font-size:13px}
+th{color:#23f6ff;background:#0b1020}
 @media(max-width:640px){
 .topbar{display:block}
 .admin-nav{justify-content:flex-start;margin-top:14px}
@@ -69,16 +72,16 @@ pre{overflow:auto;padding:14px;border:1px solid #26364f;background:#050814;color
 """
 
 
-def login_page(error=False):
-    error_html = ""
-    if error:
-        error_html = '<p class="error">Access denied. Check the admin credentials.</p>'
+def portal_page(title, action, button_text, error_html="", password_hint="", csrf_token=""):
+    hidden = ""
+    if csrf_token:
+        hidden = '<input type="hidden" name="csrf_token" value="%s">' % escape_html(csrf_token)
 
     return """<!doctype html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gateway Portal Login</title>
+<title>%s</title>
 <style>
 %s
 body{display:grid;place-items:center;overflow:hidden}
@@ -164,20 +167,71 @@ main{padding:0}
 <body>
 <main class="portal">
 <p class="eyebrow">LAN Gateway Node</p>
-<h1>Portal Access</h1>
+<h1>%s</h1>
 %s
-<form action="/login" method="get">
+<form action="%s" method="post">
 <label for="username">Admin username</label>
-<input id="username" name="username" autocomplete="username" required>
+<input id="username" name="username" value="admin" autocomplete="username" required>
 <label for="password">Access password</label>
-<input id="password" name="password" type="password" autocomplete="current-password" inputmode="numeric" required>
-<button type="submit">Enter Gateway</button>
+<input id="password" name="password" type="password" autocomplete="current-password" required>
+%s
+<button type="submit">%s</button>
 </form>
-<p class="hint">Local HTTP portal. Use only on your trusted LAN.</p>
+<p class="hint">%s</p>
 </main>
 </body>
 </html>
-""" % (page_style().replace("%", "%%"), error_html)
+""" % (
+        title,
+        page_style().replace("%", "%%"),
+        title,
+        error_html,
+        action,
+        hidden,
+        button_text,
+        password_hint,
+    )
+
+
+def login_page(error=False, csrf_token="", message=""):
+    error_html = ""
+    if error:
+        if not message:
+            message = "Access denied. Check the admin credentials."
+        error_html = '<p class="error">%s</p>' % escape_html(message)
+
+    return portal_page(
+        "Portal Access",
+        "/login",
+        "Enter Gateway",
+        error_html,
+        "Local portal. Use only on your trusted LAN or behind HTTPS termination.",
+        csrf_token,
+    )
+
+
+def setup_page(error=False, csrf_token=""):
+    error_html = ""
+    if error:
+        error_html = '<p class="error">Use a password with at least 8 characters.</p>'
+
+    return portal_page(
+        "First Run Setup",
+        "/setup",
+        "Create Admin",
+        error_html,
+        "Session, client, and internal backend tokens are generated automatically.",
+        csrf_token,
+    )
+
+
+def setup_complete_page():
+    return info_page(
+        "Setup Complete",
+        "Admin credentials and local access tokens were created. The current browser session can continue.",
+        "",
+        None,
+    )
 
 
 def discovery_rows(message):
@@ -204,6 +258,25 @@ def metric_rows(data):
     return rows
 
 
+def request_log_rows(entries):
+    if not entries:
+        return "<p>No requests logged yet.</p>"
+
+    rows = ""
+    for entry in entries:
+        rows += "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
+            escape_html(str(entry["client_ip"])),
+            escape_html(str(entry["method"])),
+            escape_html(str(entry["path"])),
+            escape_html(str(entry["status"])),
+        )
+
+    return (
+        "<table><thead><tr><th>Client</th><th>Method</th><th>Path</th><th>Status</th></tr></thead>"
+        "<tbody>%s</tbody></table>"
+    ) % rows
+
+
 def escape_html(value):
     return (
         value.replace("&", "&amp;")
@@ -213,7 +286,7 @@ def escape_html(value):
     )
 
 
-def dashboard_page(ip_address, discovery_message, metric_data):
+def dashboard_page(ip_address, discovery_message, metric_data, request_log, session_seconds):
     return """<!doctype html>
 <html>
 <head>
@@ -235,19 +308,25 @@ def dashboard_page(ip_address, discovery_message, metric_data):
 <a class="logout" href="/logout">Logout</a>
 </nav>
 </div>
-<p>Gateway <code>%s</code> is online. Select a protected route.</p>
+<p>Gateway <code>%s</code> is online on this device. Select a protected route.</p>
 <section class="grid">
 <a href="/test/start">Run Load Test</a>
 <a href="/backend">Backend Data</a>
 <a href="/status">Backend Status</a>
 <a href="/api">Backend API</a>
+<a href="/health">Health</a>
+<a href="/export">Export Status</a>
 </section>
 <h2>Gateway Metrics</h2>
 <section class="stats">%s</section>
+<h2>Session</h2>
+<section class="stats"><div class="stat"><span class="label">seconds remaining</span><span class="number">%s</span></div></section>
 <h2>Gateway Identity</h2>
 <section class="stats">%s</section>
 <h2>Discovery Message</h2>
 <pre>%s</pre>
+<h2>Request Log</h2>
+%s
 </section>
 </main>
 </body>
@@ -256,13 +335,21 @@ def dashboard_page(ip_address, discovery_message, metric_data):
         page_style().replace("%", "%%"),
         ip_address,
         metric_rows(metric_data),
+        session_seconds,
         discovery_rows(discovery_message),
         discovery_message,
+        request_log_rows(request_log),
     )
 
 
-def metrics_page(data):
-    return info_page("Gateway Metrics", "Current counters and diagnostics.", metric_rows(data), None)
+def metrics_page(data, request_log):
+    return info_page(
+        "Gateway Metrics",
+        "Current counters, diagnostics, and recent requests.",
+        metric_rows(data),
+        None,
+        "<h2>Request Log</h2>%s" % request_log_rows(request_log),
+    )
 
 
 def backend_summary_page(status_text, api_text):

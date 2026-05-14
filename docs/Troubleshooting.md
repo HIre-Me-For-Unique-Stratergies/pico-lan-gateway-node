@@ -1,15 +1,15 @@
 # Troubleshooting
 
 <!--
-Purpose: captures the common hardware, firmware, and network failures seen
-while building the project, with direct checks for each one.
+Purpose: captures common hardware, firmware, setup, and network failures for
+the single-Pico LAN Gateway Node.
 -->
 
 ## `ImportError: no module named 'socket'`
 
 The Pico is running normal MicroPython firmware instead of the W5500 EVB firmware.
 
-Flash both Picos with:
+Flash the Pico with:
 
 ```text
 W5500_EVB_PICO
@@ -52,54 +52,69 @@ Check:
 - switch/router port
 - switch port set to auto negotiation
 
-## Direct Backend Works But Should Be Blocked
+## Browser Cannot Reach The Pico
 
-Check `backend_pico/config.py`:
+Check:
 
-```python
-ALLOWED_GATEWAY_IP = "GATEWAY_IP"
+- the Pico printed an IP address in Thonny
+- the client device is on the same LAN or allowed VLAN
+- router firewall rules are not blocking the Pico HTTP port
+- the W5500 link light is active
+- root `/main.py` and the `/gateway_pico/` folder were copied to the Pico
+
+## Redirects To `/setup`
+
+This is expected on first boot or after deleting `settings.py`.
+
+Create the admin account at:
+
+```text
+http://PICO_IP/setup
 ```
 
-This must match the gateway Pico IP, not the laptop IP.
+## Login Fails
+
+Check:
+
+- the username is `admin` unless you changed it during setup
+- the password is the one created on first launch
+- the browser accepts cookies
+- `settings.py` exists on the Pico root
+
+If the password is lost, follow the reset process in `docs/Recovery.md`.
 
 ## Gateway Returns `blocked`
 
-The laptop IP is not allowed by `gateway_pico/config.py`.
+The path was denied by `gateway_pico/config.py`.
 
 Check:
 
 ```python
 RULES = [
-    ("LAPTOP_CLIENT_IP", "/status", "allow"),
+    ("ANY", "/status", "allow"),
 ]
 ```
 
-Replace `LAPTOP_CLIENT_IP` with the laptop IPv4 address.
+## Gateway Returns `rate_limited`
 
-## Gateway Returns `proxy_error`
-
-The gateway could not reach the backend.
+The client exceeded the configured request limit.
 
 Check:
 
-- backend Pico is powered and solid LED
-- `BACKEND_HOST` matches the backend Pico IP
-- backend HTTP server is listening on port `8080`
-- backend config allows the gateway IP
-- both Picos are on the same LAN/subnet
-
-## `ECONNRESET`
-
-The gateway reached the backend, but the backend closed the socket during proxying.
-
-Check the backend Thonny terminal for:
-
-```text
-Backend request from GATEWAY_IP: GET /status
-```
-
-If it prints a different client IP, update:
-
 ```python
-ALLOWED_GATEWAY_IP = "GATEWAY_IP"
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_REQUESTS = 30
 ```
+
+Wait for the window to reset or raise the limit for testing.
+
+## Gateway Returns `proxy_error`
+
+The local in-process backend rejected or failed a request.
+
+Check:
+
+- `settings.py` exists
+- setup completed successfully
+- `gateway_pico/local_backend.py` was copied to the Pico
+- `gateway_pico/auth.py` was copied to the Pico

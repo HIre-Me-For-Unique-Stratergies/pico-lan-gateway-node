@@ -1,10 +1,11 @@
 DEVICE_NAME = "gateway-node"
+MODE = "single-pico"
 
 # The Pico listens on every network interface exposed by the W5500.
 HTTP_HOST = "0.0.0.0"
 HTTP_PORT = 80
 
-# W5500 SPI wiring. Keep this the same on the gateway and backend Picos.
+# W5500 SPI wiring for the single Pico.
 SPI_ID = 0
 SPI_BAUDRATE = 2_000_000
 SPI_SCK_PIN = 18
@@ -16,29 +17,38 @@ W5500_RST_PIN = 20
 DISCOVERY_BROADCAST_IP = "255.255.255.255"
 DISCOVERY_PORT = 4210
 DISCOVERY_INTERVAL_SECONDS = 5
+DISCOVERY_ENABLED = False
 
-# Backend server running on the second Pico.
-# Replace BACKEND_IP with the backend Pico IP from Thonny or the router reservation.
-BACKEND_HOST = "BACKEND_IP"
-BACKEND_PORT = 8080
-BACKEND_TIMEOUT_SECONDS = 5
-
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD_SHA256 = "REPLACE_WITH_PASSWORD_SHA256"
-ADMIN_SESSION_TOKEN = "REPLACE_WITH_RANDOM_SESSION_TOKEN"
+DEFAULT_ADMIN_USERNAME = "admin"
+MIN_ADMIN_PASSWORD_LENGTH = 8
+PASSWORD_HASH_ROUNDS = 1000
+SESSION_TIMEOUT_SECONDS = 900
+CLIENT_TIMEOUT_SECONDS = 5
+MAX_REQUEST_BYTES = 2048
+MAX_BODY_BYTES = 512
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_REQUESTS = 30
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_FAILURE_WINDOW_SECONDS = 600
+LOGIN_LOCKOUT_SECONDS = 600
+AUDIT_LOG_FILE = "audit.log"
+AUDIT_LOG_MAX_LINES = 100
 
 DEFAULT_ACTION = "deny"
 
-# For version 1, only this laptop can use the gateway endpoints.
-# Replace LAPTOP_CLIENT_IP with the laptop/client IPv4 address.
+# Any LAN client can reach setup/login. Authenticated sessions can use the
+# protected routes, so the gateway is not tied to one client IP address.
 RULES = [
-    ("LAPTOP_CLIENT_IP", "/", "allow"),
-    ("LAPTOP_CLIENT_IP", "/login", "allow"),
-    ("LAPTOP_CLIENT_IP", "/logout", "allow"),
-    ("LAPTOP_CLIENT_IP", "/backend", "allow"),
-    ("LAPTOP_CLIENT_IP", "/status", "allow"),
-    ("LAPTOP_CLIENT_IP", "/api", "allow"),
-    ("LAPTOP_CLIENT_IP", "/metrics", "allow"),
-    ("LAPTOP_CLIENT_IP", "/test/start", "allow"),
+    ("ANY", "/", "allow"),
+    ("ANY", "/setup", "allow"),
+    ("ANY", "/login", "allow"),
+    ("ANY", "/logout", "allow"),
+    ("ANY", "/backend", "allow"),
+    ("ANY", "/status", "allow"),
+    ("ANY", "/api", "allow"),
+    ("ANY", "/metrics", "allow"),
+    ("ANY", "/health", "allow"),
+    ("ANY", "/export", "allow"),
+    ("ANY", "/test/start", "allow"),
     ("ANY", "/admin", "block"),
 ]

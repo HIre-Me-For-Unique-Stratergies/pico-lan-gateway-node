@@ -2,186 +2,83 @@
 
 ## Project Summary
 
-LAN Gateway Node is a small two-device embedded networking project built with Raspberry Pi Pico boards and W5500 Ethernet modules.
+LAN Gateway Node is a single-device embedded networking project built with a Raspberry Pi Pico and a W5500 Ethernet module.
 
 The project demonstrates a protected LAN service architecture:
 
 ```text
-Laptop browser -> Gateway Pico -> Backend Pico
+LAN browser client -> Pico Gateway Node -> local protected backend module
 ```
 
-The laptop cannot access the backend service directly. It must go through the gateway. The gateway checks simple rules, forwards approved requests, blocks disallowed paths, and records basic metrics.
+Any device on the LAN can reach the login page. Protected routes require an admin session cookie and a generated client token. The Pico serves the UI, local backend data, metrics, request logs, and a small load test endpoint.
 
 ## Purpose
 
-The purpose of the project is to show how a small embedded device can act as a lightweight policy gateway for another LAN device.
+The purpose of the project is to show how a constrained embedded device can run a small authenticated LAN application with clear operational limits.
 
-It is not designed to be a full firewall or enterprise reverse proxy. Instead, it demonstrates practical networking concepts on constrained hardware:
+It demonstrates:
 
-- wired Ethernet with W5500 modules
-- DHCP addressing and router reservations
-- HTTP request handling
-- TCP socket forwarding
-- source IP and path-based access rules
-- backend isolation
-- simple UDP discovery
-- runtime status indicators using onboard LEDs
-- gateway metrics and basic load testing
+- wired Ethernet with a W5500 module
+- DHCP addressing and displaying the current assigned IP
+- HTTP request parsing on MicroPython
+- first-run admin setup
+- password hashing and generated access tokens
+- CSRF protection for setup and login forms
+- failed-login lockout
+- persistent rotating audit logging
+- route allow/block rules
+- request logging and rate limiting
+- optional UDP discovery, disabled by default
+- runtime status indicators using the onboard LED
+- honest security documentation for TLS and physical-access limits
 
 ## What Was Built
 
-The system uses two Raspberry Pi Pico devices.
+The system uses one Raspberry Pi Pico.
 
-| Device | IP address | Role |
-| --- | --- | --- |
-| Gateway Pico | `GATEWAY_IP` | Public entry point used by the laptop browser. |
-| Backend Pico | `BACKEND_IP` | Protected backend service. |
-| Laptop | `LAPTOP_CLIENT_IP` | Client/test machine. |
+| Component | Role |
+| --- | --- |
+| Root `main.py` | MicroPython boot script that starts the app automatically. |
+| `gateway_pico/main.py` | HTTP server, routing, login flow, lockout, CSRF checks, logging, and rate limiting. |
+| `gateway_pico/audit_log.py` | Small rotating persistent request log. |
+| `gateway_pico/local_backend.py` | Protected local backend data provider. |
+| `settings.py` | Generated password salt/hash settings on the Pico. Not committed to git. |
 
-The gateway Pico exposes browser endpoints such as:
-
-```text
-http://GATEWAY_IP/status
-http://GATEWAY_IP/api
-http://GATEWAY_IP/metrics
-```
-
-The main gateway dashboard also shows the gateway identity string, including device name, IP, port, and mode.
-
-The backend Pico runs its own HTTP server on port `8080`, but it only accepts requests from the gateway Pico.
-
-Direct laptop access to the backend is intentionally blocked:
+Browser endpoints include:
 
 ```text
-http://BACKEND_IP:8080/status
-```
-
-The expected direct backend response from the laptop is:
-
-```text
-blocked
+http://PICO_IP/
+http://PICO_IP/setup
+http://PICO_IP/login
+http://PICO_IP/status
+http://PICO_IP/api
+http://PICO_IP/metrics
 ```
 
 ## How It Works
 
-1. Both Pico boards connect to the LAN using W5500 Ethernet modules.
-2. The router gives each Pico an IPv4 address using DHCP.
-3. The gateway Pico listens for HTTP requests on port `80`.
-4. The laptop sends a browser request to the gateway Pico.
-5. The gateway checks the source IP and requested path against its rules.
-6. If the request is allowed, the gateway opens a TCP connection to the backend Pico.
-7. The gateway forwards the request to the backend Pico on port `8080`.
-8. The backend Pico checks that the request came from the gateway IP.
-9. If allowed, the backend responds.
-10. The gateway relays the backend response back to the laptop browser.
+1. The Pico connects to the LAN through the W5500 Ethernet module.
+2. The router gives the Pico an IPv4 address using DHCP.
+3. Root `/main.py` starts the application from `/gateway_pico/main.py`.
+4. On first launch, unauthenticated users are redirected to `/setup`.
+5. Setup creates a password salt and repeated password hash in `settings.py`.
+6. Login generates runtime session and client tokens, stores only their hashes in memory, and sets short-lived cookies.
+7. Protected routes require both cookies.
+8. The gateway serves local backend data through `gateway_pico/local_backend.py`.
+9. Metrics and recent request logs are shown in the browser.
+10. Rate limiting rejects clients that exceed the configured request window.
+11. Expired sessions are cleared and must log in again.
+12. Repeated failed logins trigger a temporary lockout.
+13. `/health` and `/export` expose safe operational diagnostics.
 
-This proves that clients can use the backend service only through the gateway policy layer.
+## Security Positioning
 
-## Network Setup
+The firmware includes password setup, salted password hashing, runtime token-backed login, CSRF-protected forms, failed-login lockout, automatic session expiry, persistent audit logging, rate limiting, health/export diagnostics, and disabled discovery by default.
 
-The network uses DHCP reservations in the router portal so the devices keep stable IP addresses.
-
-| Device | Reserved IP |
-| --- | --- |
-| Gateway Pico | `GATEWAY_IP` |
-| Backend Pico | `BACKEND_IP` |
-| Laptop client | `LAPTOP_CLIENT_IP` |
-
-This avoids hardcoding static IP settings on the Pico devices while still keeping the system predictable.
-
-The gateway is configured to forward to:
-
-```python
-BACKEND_HOST = "BACKEND_IP"
-BACKEND_PORT = 8080
-```
-
-The backend is configured to only trust the gateway:
-
-```python
-ALLOWED_GATEWAY_IP = "GATEWAY_IP"
-```
-
-## Protocols Used
-
-The project uses:
-
-- Ethernet for wired LAN connectivity
-- SPI between each Pico and its W5500 module
-- DHCP for address assignment
-- IPv4 for LAN addressing
-- TCP for reliable socket communication
-- HTTP for browser and backend requests
-- UDP broadcast for gateway discovery
-
-It does not use HTTPS, DNS, mDNS, Wi-Fi, or full firewall packet filtering.
-
-## Hardware Setup
-
-Both Picos are flashed with the W5500 EVB MicroPython UF2 firmware before the project files are copied onto them.
-
-Firmware target:
-
-```text
-W5500_EVB_PICO
-```
-
-UF2 file used in this project:
-
-```text
-W5500_EVB_PICO-20260406-v1.28.0.uf2
-```
-
-Each Pico is wired to a W5500 Ethernet module using the same GPIO layout:
-
-| W5500 | Pico |
-| --- | --- |
-| VCC / 3.3V | 3V3(OUT) |
-| GND | GND |
-| SCK / SCLK | GP18 |
-| MISO / SO / DOUT | GP16 |
-| MOSI / SI / DIN | GP19 |
-| CS / SS | GP17 |
-| RST / RESET | GP20 |
-
-This firmware is required because the normal Pico MicroPython firmware may not include `socket` and `network.WIZNET5K` support.
-
-## Status LEDs
-
-The onboard LEDs provide quick status feedback:
-
-| LED pattern | Meaning |
-| --- | --- |
-| Slow blink | Waiting for Ethernet. |
-| Solid on | Connected and running. |
-| Double blink | Request handled. |
-| Fast flashing | Error or bad request. |
-
-## What This Demonstrates
-
-This project demonstrates that I can:
-
-- design a small networked embedded system
-- work with constrained MicroPython hardware
-- use LAN protocols directly rather than relying on high-level frameworks
-- structure a project across multiple devices
-- build and test a simple gateway/proxy architecture
-- apply access-control logic at the application layer
-- debug real hardware, firmware, IP addressing, and socket behavior
-- document a project clearly enough for setup and presentation
-
-## Future Improvements
-
-Possible next steps:
-
-- add a real sensor or actuator to the backend Pico
-- add a small web dashboard to the gateway
-- add configurable rules through a protected admin endpoint
-- add request logs to `/metrics`
-- add stronger authentication, such as a shared token
-- move from DHCP-only discovery to mDNS or a small desktop discovery tool
-- use router firewall rules or VLANs for stronger backend isolation
+It does not claim to provide production HTTPS or physical tamper resistance on the Pico itself. For encrypted access, place the Pico behind a TLS reverse proxy, VPN, or router that terminates HTTPS. For physical security, use an enclosure and restrict access to USB data, BOOTSEL, reset, and SWD pins.
 
 ## Short Interview Explanation
 
-I built a two-Pico LAN gateway system. One Pico acts as a gateway and the second Pico acts as a protected backend server. The laptop can only reach the backend through the gateway. The gateway checks source IP and path rules, forwards allowed requests over TCP/HTTP, blocks disallowed requests, and exposes metrics. The backend also rejects direct laptop access and only accepts traffic from the gateway IP. This demonstrates embedded Ethernet, socket programming, simple reverse proxy behavior, and application-level access control on constrained hardware.
+```text
+I built a single-Pico LAN gateway application using MicroPython and a W5500 Ethernet module. On first launch it creates an admin account with a salted repeated password hash, then protects operational routes behind runtime session and client tokens that expire automatically. The app protects setup/login forms with CSRF tokens, locks out repeated failed logins, shows its current DHCP address, serves local backend diagnostics, records a rotating audit log, rate-limits clients, and keeps UDP discovery disabled by default. I also documented the boundaries clearly: HTTPS should be handled by a TLS reverse proxy or VPN, and a standard Pico cannot guarantee secure boot or flash encryption against physical attackers.
+```

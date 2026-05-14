@@ -1,340 +1,79 @@
 Project: LAN Gateway Node
 
-Your Raspberry Pi Pico + W5500 becomes a small network appliance on your local network that does four jobs at once:
-
-announces itself on the LAN
-accepts client requests
-applies basic allow/block rules
-forwards approved requests to a backend server
-can also generate test traffic to stress that backend
-
-So instead of building separate demos, you build one embedded gateway box.
-
-Simple idea
-
-Think of it as a tiny network receptionist + guard + tester.
-
-It says:
-
-“I’m here” → service discovery
-“Who are you?” → IP/port rule check
-“I’ll pass your request along” → reverse proxy
-“Let me also test the backend” → load generator
-What this combined project does
-Part 1: LAN Service Discovery
-
-The Pico broadcasts UDP messages on the LAN such as:
-
-device name
-IP address
-service port
-status
-
-That lets other devices discover it automatically.
-
-Example announcement:
-
-NAME=gateway-node
-IP=GATEWAY_IP
-HTTP=80
-STATUS=ready
-
-So a PC tool or dashboard can find it without you typing the IP manually.
-
-Part 2: Basic Firewall / Rule Node
-
-When a client connects to the Pico, the Pico checks simple rules like:
-
-Is this source IP allowed?
-Is this destination port allowed?
-Is this path allowed?
-
-Example rules:
-
-allow LAPTOP_CLIENT_IP to access /status
-allow OTHER_CLIENT_IP to access /api
-block everyone from /admin
-deny unknown clients
-
-This is not a real inline firewall for the whole network.
-It is a policy gate for traffic sent to the Pico.
-
-Part 3: Lightweight Reverse Proxy
-
-If the request passes the rules, the Pico forwards it to a backend server.
-
-Example:
-
-client calls http://GATEWAY_IP/status
-Pico checks rules
-Pico forwards to backend BACKEND_IP:8080/status
-backend responds
-Pico returns that response to client
-
-So users only talk to the Pico, not directly to the backend.
-
-Part 4: Load Generator / Traffic Simulator
-
-The Pico can also switch into test mode and generate repeated traffic to the backend server.
-
-Example:
-
-open several sockets
-send repeated GET requests to /status
-count responses and failures
-
-This lets you stress test the backend service from the same hardware.
-
-What the full system looks like
-                UDP broadcast
-                     |
-                     v
-    -----------------------------------------
-    |                                       |
-[ Laptop ]                            [ Phone / PC Tool ]
-    |                                       |
-    | HTTP request to Pico                  |
-    v                                       |
-              [ Pico + W5500 ]
-          -------------------------
-          | Discovery announcer   |
-          | Rule checker          |
-          | Reverse proxy         |
-          | Load generator        |
-          -------------------------
-                     |
-                     | forwarded requests
-                     v
-              [ Backend Server ]
-Hardware setup
-Devices
-
-You need:
-
-Raspberry Pi Pico
-W5500 Ethernet module
-router or switch
-backend server
-client device such as laptop or phone
-Ethernet cable for W5500 to router
-USB cable for Pico power/programming
-Wiring: Pico to W5500
-
-Typical SPI wiring:
-
-W5500	Pico
-VCC	3.3V
-GND	GND
-SCK	GP18
-MISO	GP16
-MOSI	GP19
-CS	GP17
-RST	GP20 optional
-
-Important:
-
-use 3.3V
-keep wires short
-make sure grounds are common
-Network layout
-
-Example LAN:
-
-Device	Example IP
-Pico gateway	GATEWAY_IP
-Backend server	BACKEND_IP
-Laptop client	LAPTOP_CLIENT_IP
-
-All on the same subnet.
-
-How the combined project behaves
-Normal mode
-Pico starts Ethernet
-Pico gets IP address
-Pico broadcasts discovery packets every few seconds
-Pico listens for client connections on port 80
-Client sends request
-Pico checks rules
-If blocked, Pico returns deny or closes connection
-If allowed, Pico forwards request to backend
-Pico relays backend response to client
-Test mode
-Pico opens several outgoing sockets
-Sends repeated requests to backend
-Tracks:
-number sent
-number successful
-number failed
-average response time, if simple timing is added
-Exposes results on /metrics or serial output
-Why this is a strong combined project
-
-It teaches multiple real networking ideas in one build:
-
-UDP broadcast discovery
-TCP server behavior
-access control rules
-request forwarding
-multi-socket handling
-small-scale stress testing
-LAN service design
-
-This is much closer to a real embedded network appliance than a simple blink-or-sensor project.
-
-Suggested features
-1. Discovery packet
-
-Every 5 seconds, send UDP broadcast:
-
-DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy
-2. HTTP endpoints on Pico
-
-Expose simple endpoints like:
-
-/ -> dashboard with local device info
-/status → proxy-safe status page
-/metrics → proxy/load stats
-/test/start → begin load test
-/test/stop → stop load test
-3. Rule engine
-
-Simple table like:
-
-Source IP	Path	Action
-LAPTOP_CLIENT_IP	/status	allow
-LAPTOP_CLIENT_IP	/metrics	allow
-OTHER_CLIENT_IP	/test/start	allow
-ANY	/admin	block
-ANY	*	deny by default
-4. Reverse proxy mapping
-
-Example fixed backend:
-
-backend IP: BACKEND_IP
-backend port: 8080
-
-Mappings:
-
-/status → /status
-/api → /api
-/metrics/backend → /metrics
-5. Load generation
-
-The Pico can run a simple test such as:
-
-4 sockets
-50 requests per socket
-target /status
-collect totals
-
-This stays within W5500 limits better than trying to do huge traffic volumes.
-
-What each part is responsible for
-Pico
-service discovery
-rule enforcement
-proxy forwarding
-traffic generation control
-small stats page
-Backend server
-actual application logic
-real API or webpage
-responses that Pico forwards
-Client device
-browser or script that talks to Pico
-discovery listener, optional
-Realistic limitations
-
-This combined design is good, but still limited.
-
-Limits of W5500 and Pico
-few simultaneous sockets
-low RAM
-basic HTTP only
-no practical HTTPS termination
-small buffers only
-simple rule logic only
-no deep packet inspection
-no full mDNS stack unless you implement much more
-no large-scale load testing
-
-So this is a small embedded LAN gateway, not a replacement for Nginx or a real firewall appliance.
-
-Best simplified version
-
-The smartest version to build first is:
-
-Version 1
-DHCP or static IP
-UDP discovery broadcast
-HTTP listener on Pico
-rule check by source IP and path
-proxy /status to one backend
-one test endpoint that sends repeated requests to backend
-metrics page showing:
-allowed requests
-blocked requests
-proxied requests
-load-test successes/failures
-
-That gives you one complete, coherent project.
-
-Example use case
-
-Suppose you have a backend Python server on your PC.
-
-The Pico does this:
-
-announces: “gateway-node available at GATEWAY_IP”
-only allows your laptop IP
-forwards /status and /api
-blocks /admin
-provides /test/start to stress the backend
-shows all counts on /metrics
-
-So the Pico becomes a discoverable protected frontend for your backend service.
-
-Build sequence
-Stage 1
-
-Get Pico + W5500 online and reachable.
-
-Stage 2
-
-Add UDP broadcast discovery.
-
-Stage 3
-
-Add simple HTTP server on Pico.
-
-Stage 4
-
-Add source-IP/path rule engine.
-
-Stage 5
-
-Add proxy forwarding to backend.
-
-Stage 6
-
-Add load test mode and stats.
-
-That is the cleanest development order.
-
-Final project definition
-
-A good name for the combined build is:
-
-Embedded LAN Gateway Node
-
-or
-
-Pico Network Gateway
-
-or
-
-LAN Discovery Proxy Tester
-
-And its purpose is:
-
-A discoverable LAN device that protects access to a backend service, forwards approved requests, and can generate test traffic for diagnostics.
+LAN Gateway Node is a single Raspberry Pi Pico + W5500 Ethernet project.
+
+The Pico becomes a small LAN appliance that:
+
+- starts automatically from root main.py
+- serves a browser UI
+- creates an admin account on first launch
+- requires login for protected routes
+- generates runtime session, client, and internal backend tokens
+- expires sessions after a configured timeout
+- protects setup and login with CSRF tokens
+- locks out repeated failed logins
+- writes a rotating persistent audit log
+- validates config before starting network service
+- exposes health and safe status export endpoints
+- displays its current DHCP IP address
+- serves protected local backend data
+- records recent requests
+- rate-limits clients
+- exposes metrics
+- keeps UDP discovery disabled by default
+
+Network shape:
+
+LAN client browser
+    |
+    | HTTP request
+    v
+Raspberry Pi Pico + W5500
+    |
+    | in-process protected calls
+    v
+local_backend.py
+
+This is not an inline firewall. It is an authenticated application-layer LAN service running on constrained hardware.
+
+Important endpoints:
+
+/setup       first-run admin password setup
+/login       admin login
+/logout      clear auth cookies
+/            dashboard
+/metrics     metrics and request log
+/backend     local backend summary
+/status      local backend status
+/api         local backend API data
+/health      JSON health and diagnostics
+/export      safe status export
+/test/start  small in-process load test
+/admin       intentionally blocked
+
+Security design:
+
+- Passwords are submitted with POST.
+- A password salt, repeated password hash, and hash round count are stored in settings.py on the Pico.
+- Runtime bearer tokens are held in memory and validated by hash.
+- settings.py is ignored by git.
+- Protected routes require a valid session cookie and client token cookie.
+- A backend token is used as an internal boundary between the gateway route layer and local_backend.py.
+- Expired sessions are cleared and must log in again.
+- Failed login attempts are tracked and temporarily locked out.
+- audit.log keeps a small rotating persistent record of recent requests.
+- /export includes safe diagnostics but no passwords or bearer tokens.
+- UDP discovery is off unless DISCOVERY_ENABLED is set to True.
+- Recent request logs and simple rate limits are enabled.
+
+Limits:
+
+- The Pico does not provide production HTTPS serving in this project.
+- Use a TLS reverse proxy, VPN, or router HTTPS feature for encrypted access.
+- A standard Pico does not provide secure boot or flash encryption.
+- Anyone with physical access to USB data, BOOTSEL, reset, or SWD should be treated as able to compromise the device.
+- Router firewall rules and VLANs must be configured on the router or switch, not in Pico firmware.
+
+Best presentation:
+
+This is a realistic embedded LAN service demo. It shows Ethernet bring-up, socket handling, authenticated browser routes, token-backed access control, request diagnostics, and honest security boundaries on constrained hardware.

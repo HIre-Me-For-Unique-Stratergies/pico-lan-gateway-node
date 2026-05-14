@@ -13,6 +13,7 @@ __pycache__/
 *.hex
 
 # Local/private config copies
+settings.py
 config.local.py
 *_local.py
 .env

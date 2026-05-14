@@ -4,7 +4,7 @@ import time
 import config
 
 
-MODE = "proxy"
+MODE = getattr(config, "MODE", "single-pico")
 
 
 def build_message(ip_address):

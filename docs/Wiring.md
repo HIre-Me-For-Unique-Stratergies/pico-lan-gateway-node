@@ -1,11 +1,10 @@
 # Wiring Notes
 
 <!--
-Purpose: documents the physical wiring for both Pico devices so the hardware
-can be rebuilt consistently without relying on memory or chat history.
+Purpose: documents the physical wiring for the single Pico + W5500 build.
 -->
 
-Both the gateway Pico and backend Pico use the same W5500 wiring.
+Use this wiring for the Pico running LAN Gateway Node.
 
 | W5500 pin | Pico pin |
 | --- | --- |
@@ -24,9 +23,7 @@ Power notes:
 - Use `3V3(OUT)` for the W5500 VCC pin.
 - Use a Pico `GND` pin for W5500 ground.
 - Do not power the W5500 from `VBUS`, `VSYS`, or `3V3_EN`.
-- Do not power both W5500 modules from one Pico's `3V3(OUT)`.
-
-Each Pico should power its own W5500 module.
+- Keep wires short and mechanically secured.
 
 Switch/router port:
 

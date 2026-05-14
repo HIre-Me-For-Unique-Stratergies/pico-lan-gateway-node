@@ -2,71 +2,168 @@
 
 <!--
 Purpose: gives a repeatable browser-based test sequence for confirming that
-the backend, gateway, blocking rules, proxying, and metrics all work.
+single-Pico setup, login, local backend data, blocking rules, metrics, logging,
+and rate limiting work.
 -->
 
-Before testing, replace placeholders in both config files:
+## Startup
 
-| Placeholder | Replace with |
-| --- | --- |
-| `GATEWAY_IP` | Gateway Pico IP from Thonny or router DHCP reservation. |
-| `BACKEND_IP` | Backend Pico IP from Thonny or router DHCP reservation. |
-| `LAPTOP_CLIENT_IP` | Laptop/client IPv4 address. |
+1. Flash the Pico with W5500-compatible MicroPython firmware.
+2. Copy root `main.py` and the `gateway_pico/` folder to the Pico root.
+3. Power the Pico and wait for the onboard LED to become solid.
+4. Read the current Pico IP address from Thonny serial output or from the router DHCP client list.
 
-Recommended startup order:
+## First-Run Setup
 
-1. Power backend Pico.
-2. Wait for solid onboard LED.
-3. Power gateway Pico.
-4. Wait for solid onboard LED.
-5. Test from the laptop browser.
-
-Backend direct access test:
+Open:
 
 ```text
-http://BACKEND_IP:8080/
-http://BACKEND_IP:8080/status
-http://BACKEND_IP:8080/api
-http://BACKEND_IP:8080/discover
+http://PICO_IP/
 ```
 
-Expected result from the laptop:
+Expected result:
 
 ```text
-blocked
+Redirects to /setup
 ```
 
-Gateway local tests:
+Create the admin account:
 
 ```text
-http://GATEWAY_IP/
-http://GATEWAY_IP/metrics
+Username: admin
+Password: choose on first launch
 ```
 
-Expected dashboard identity section:
+Expected result:
 
 ```text
-DEVICE=gateway-node;IP=GATEWAY_IP;PORT=80;MODE=proxy
+settings.py is created on the Pico
 ```
 
-Gateway proxy tests:
+The browser should receive the session and client-token cookies, then redirect to `/`.
+
+`settings.py` should contain only username and password hash settings. It should not contain the admin password, session token, client token, or backend token.
+
+## Login
+
+Open:
 
 ```text
-http://GATEWAY_IP/backend
-http://GATEWAY_IP/status
-http://GATEWAY_IP/api
+http://PICO_IP/login
+```
+
+Sign in with the admin password.
+
+Expected result:
+
+```text
+Redirects to /
+```
+
+The browser receives:
+
+```text
+gateway_session cookie
+gateway_client_token cookie
+```
+
+Both cookies should include a `Max-Age` matching `SESSION_TIMEOUT_SECONDS`.
+
+## Protected Routes
+
+Open:
+
+```text
+http://PICO_IP/
+http://PICO_IP/metrics
+http://PICO_IP/backend
+http://PICO_IP/status
+http://PICO_IP/api
+http://PICO_IP/health
+http://PICO_IP/export
+```
+
+Expected result:
+
+```text
+Each page loads after login.
 ```
 
 Expected `/status` shape:
 
 ```json
-{"service":"lan-gateway-backend-pico","device":"backend-node","status":"ready","uptime_seconds":123}
+{"service":"lan-gateway-node","device":"gateway-node","mode":"single-pico","ip_address":"PICO_IP","status":"ready","uptime_seconds":123}
 ```
 
-Load test:
+## Request Log
+
+Open:
 
 ```text
-http://GATEWAY_IP/test/start
+http://PICO_IP/metrics
+```
+
+Expected result:
+
+```text
+Recent client IP, method, path, and status entries are visible.
+```
+
+The Pico should also keep a rotating persistent audit log:
+
+```text
+audit.log
+```
+
+This file should contain recent method, path, client, and status entries.
+
+## Failed Login Lockout
+
+Submit the wrong password at `/login` repeatedly.
+
+Expected result after `LOGIN_FAILURE_LIMIT` failures:
+
+```text
+Too many failed attempts.
+```
+
+The client should remain locked out until `LOGIN_LOCKOUT_SECONDS` expires.
+
+## CSRF Protection
+
+Open `/login`, then inspect the form source.
+
+Expected result:
+
+```text
+csrf_token hidden field
+gateway_csrf cookie
+```
+
+Submitting a login form without the matching CSRF token should fail.
+
+## Health And Export
+
+Open:
+
+```text
+http://PICO_IP/health
+http://PICO_IP/export
+```
+
+Expected result:
+
+```text
+/health returns JSON diagnostics.
+/export returns safe text diagnostics and recent audit log lines without secrets.
+```
+
+## Load Test
+
+Open:
+
+```text
+http://PICO_IP/test/start
 ```
 
 Expected shape:
@@ -78,10 +175,10 @@ failures=0
 elapsed_ms=...
 ```
 
-Check metrics after the load test:
+Check metrics again:
 
 ```text
-http://GATEWAY_IP/metrics
+http://PICO_IP/metrics
 ```
 
 Expected counters to increase:
@@ -92,3 +189,27 @@ proxied_requests
 load_test_requests
 load_test_successes
 ```
+
+## Blocked Route
+
+Open:
+
+```text
+http://PICO_IP/admin
+```
+
+Expected result:
+
+```text
+blocked
+```
+
+## Discovery
+
+UDP discovery is disabled by default in `gateway_pico/config.py`:
+
+```python
+DISCOVERY_ENABLED = False
+```
+
+No discovery broadcasts should appear unless this value is changed to `True`.
