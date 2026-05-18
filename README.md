@@ -64,7 +64,8 @@ Do not commit `settings.py`.
 | `/admin` | Intentionally blocked. |
 
 Protected routes require a valid login session and generated client token cookie.
-Sessions expire automatically after the configured timeout, forcing the browser to log in again.
+Sessions remain valid while the Pico is running and the browser keeps making authenticated requests.
+After the configured inactivity timeout, the session expires and the browser must log in again.
 
 ## Security Model
 
@@ -76,7 +77,7 @@ Implemented in firmware:
 - generated runtime session token
 - generated runtime client token
 - generated runtime internal backend token
-- automatic session expiry
+- automatic inactivity-based session expiry
 - CSRF token on setup and login forms
 - failed-login lockout
 - persistent rotating audit log

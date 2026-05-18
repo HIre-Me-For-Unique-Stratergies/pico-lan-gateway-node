@@ -44,7 +44,7 @@ def validate_config():
     if config.MAX_BODY_BYTES > config.MAX_REQUEST_BYTES:
         errors.append("MAX_BODY_BYTES must be less than or equal to MAX_REQUEST_BYTES")
 
-    required_paths = ("/", "/setup", "/login", "/logout", "/metrics", "/health", "/export")
+    required_paths = ("/", "/favicon.ico", "/setup", "/login", "/logout", "/metrics", "/health", "/export")
     configured_paths = [rule[1] for rule in config.RULES]
 
     for path in required_paths:
@@ -458,6 +458,10 @@ def handle_logout(client):
     )
 
 
+def handle_favicon(client):
+    send_response(client, "204 No Content", "image/x-icon", b"")
+
+
 def handle_metrics(client):
     send_response(client, "200 OK", "text/html", ui.metrics_page(metrics.snapshot(), REQUEST_LOG))
 
@@ -595,7 +599,10 @@ def handle_client(client, address, ip_address):
             status_led.request_handled()
             return
 
-        if not auth.is_configured() and path != "/setup":
+        if path == "/favicon.ico":
+            handle_favicon(client)
+            log_request(client_ip, method, path, "204")
+        elif not auth.is_configured() and path != "/setup":
             send_response(client, "302 Found", "text/plain", "setup_required\n", [("Location", "/setup")])
             log_request(client_ip, method, path, "302")
         elif path == "/setup":
@@ -610,33 +617,36 @@ def handle_client(client, address, ip_address):
         elif not auth.is_authenticated(headers) or not auth.client_token_is_valid(headers):
             send_login_page(client)
             log_request(client_ip, method, path, "200")
-        elif path == "/":
-            handle_home(client, ip_address)
-            log_request(client_ip, method, path, "200")
-        elif path == "/metrics":
-            handle_metrics(client)
-            log_request(client_ip, method, path, "200")
-        elif path == "/health":
-            handle_health(client, ip_address)
-            log_request(client_ip, method, path, "200")
-        elif path == "/export":
-            handle_export(client, ip_address)
-            log_request(client_ip, method, path, "200")
-        elif path == "/test/start":
-            handle_load_test(client, ip_address)
-            log_request(client_ip, method, path, "200")
-        elif path == "/backend":
-            handle_backend_summary(client, ip_address)
-            log_request(client_ip, method, path, "200")
-        elif path == "/status":
-            handle_backend_data(client, "/status", "Backend Status", ip_address)
-            log_request(client_ip, method, path, "200")
-        elif path == "/api":
-            handle_backend_data(client, "/api", "Backend API", ip_address)
-            log_request(client_ip, method, path, "200")
         else:
-            send_response(client, "404 Not Found", "text/plain", "not_found\n")
-            log_request(client_ip, method, path, "404")
+            auth.refresh_session()
+
+            if path == "/":
+                handle_home(client, ip_address)
+                log_request(client_ip, method, path, "200")
+            elif path == "/metrics":
+                handle_metrics(client)
+                log_request(client_ip, method, path, "200")
+            elif path == "/health":
+                handle_health(client, ip_address)
+                log_request(client_ip, method, path, "200")
+            elif path == "/export":
+                handle_export(client, ip_address)
+                log_request(client_ip, method, path, "200")
+            elif path == "/test/start":
+                handle_load_test(client, ip_address)
+                log_request(client_ip, method, path, "200")
+            elif path == "/backend":
+                handle_backend_summary(client, ip_address)
+                log_request(client_ip, method, path, "200")
+            elif path == "/status":
+                handle_backend_data(client, "/status", "Backend Status", ip_address)
+                log_request(client_ip, method, path, "200")
+            elif path == "/api":
+                handle_backend_data(client, "/api", "Backend API", ip_address)
+                log_request(client_ip, method, path, "200")
+            else:
+                send_response(client, "404 Not Found", "text/plain", "not_found\n")
+                log_request(client_ip, method, path, "404")
 
         status_led.request_handled()
     except ValueError as exc:

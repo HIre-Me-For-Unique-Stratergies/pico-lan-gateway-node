@@ -72,6 +72,10 @@ th{color:#23f6ff;background:#0b1020}
 """
 
 
+def favicon_tag():
+    return '<link rel="icon" href="data:,">'
+
+
 def portal_page(title, action, button_text, error_html="", password_hint="", csrf_token=""):
     hidden = ""
     if csrf_token:
@@ -81,6 +85,7 @@ def portal_page(title, action, button_text, error_html="", password_hint="", csr
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+%s
 <title>%s</title>
 <style>
 %s
@@ -182,6 +187,7 @@ main{padding:0}
 </body>
 </html>
 """ % (
+        favicon_tag(),
         title,
         page_style().replace("%", "%%"),
         title,
@@ -291,6 +297,7 @@ def dashboard_page(ip_address, discovery_message, metric_data, request_log, sess
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+%s
 <title>LAN Gateway Node</title>
 <style>
 %s
@@ -332,6 +339,7 @@ def dashboard_page(ip_address, discovery_message, metric_data, request_log, sess
 </body>
 </html>
 """ % (
+        favicon_tag(),
         page_style().replace("%", "%%"),
         ip_address,
         metric_rows(metric_data),
@@ -395,6 +403,7 @@ def info_page(title, subtitle, stat_rows, raw_text, extra_html=""):
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+%s
 <title>%s</title>
 <style>
 %s
@@ -422,6 +431,7 @@ def info_page(title, subtitle, stat_rows, raw_text, extra_html=""):
 </body>
 </html>
 """ % (
+        favicon_tag(),
         title,
         page_style().replace("%", "%%"),
         title,

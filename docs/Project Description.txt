@@ -9,7 +9,7 @@ The Pico becomes a small LAN appliance that:
 - creates an admin account on first launch
 - requires login for protected routes
 - generates runtime session, client, and internal backend tokens
-- expires sessions after a configured timeout
+- expires sessions after a configured inactivity timeout
 - protects setup and login with CSRF tokens
 - locks out repeated failed logins
 - writes a rotating persistent audit log
@@ -59,7 +59,7 @@ Security design:
 - settings.py is ignored by git.
 - Protected routes require a valid session cookie and client token cookie.
 - A backend token is used as an internal boundary between the gateway route layer and local_backend.py.
-- Expired sessions are cleared and must log in again.
+- Inactive expired sessions are cleared and must log in again.
 - Failed login attempts are tracked and temporarily locked out.
 - audit.log keeps a small rotating persistent record of recent requests.
 - /export includes safe diagnostics but no passwords or bearer tokens.

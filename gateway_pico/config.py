@@ -40,6 +40,7 @@ DEFAULT_ACTION = "deny"
 # protected routes, so the gateway is not tied to one client IP address.
 RULES = [
     ("ANY", "/", "allow"),
+    ("ANY", "/favicon.ico", "allow"),
     ("ANY", "/setup", "allow"),
     ("ANY", "/login", "allow"),
     ("ANY", "/logout", "allow"),

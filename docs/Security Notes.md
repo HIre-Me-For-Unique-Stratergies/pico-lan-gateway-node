@@ -15,7 +15,7 @@ What the firmware now protects:
 - Reusable plaintext passwords and bearer tokens are not stored in `settings.py`.
 - Passwords are submitted with `POST`, not URL query strings.
 - Protected routes require login plus the generated client token.
-- Sessions expire automatically after the configured timeout.
+- Sessions expire automatically after the configured inactivity timeout.
 - Login and setup forms use a CSRF token.
 - Repeated failed logins trigger a temporary per-client lockout.
 - Requests are written to a rotating `audit.log` file.

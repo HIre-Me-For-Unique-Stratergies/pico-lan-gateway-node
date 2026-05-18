@@ -206,6 +206,13 @@ def begin_session(client_token_value=""):
     _session_expires_at = _now() + _session_timeout_seconds()
 
 
+def refresh_session():
+    global _session_expires_at
+
+    if _session_is_active():
+        _session_expires_at = _now() + _session_timeout_seconds()
+
+
 def clear_session():
     global _current_session_token
     global _current_session_hash
@@ -338,18 +345,16 @@ def credentials_are_valid(username, password):
 
 
 def session_cookie_header():
-    return "%s=%s; Path=/; Max-Age=%s; HttpOnly; SameSite=Strict" % (
+    return "%s=%s; Path=/; HttpOnly; SameSite=Strict" % (
         SESSION_COOKIE,
         _current_session_token,
-        _session_timeout_seconds(),
     )
 
 
 def client_token_cookie_header():
-    return "%s=%s; Path=/; Max-Age=%s; HttpOnly; SameSite=Strict" % (
+    return "%s=%s; Path=/; HttpOnly; SameSite=Strict" % (
         CLIENT_TOKEN_COOKIE,
         _current_client_token,
-        _session_timeout_seconds(),
     )
 
 

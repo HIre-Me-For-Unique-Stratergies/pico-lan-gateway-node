@@ -62,23 +62,23 @@ http://PICO_IP/metrics
 3. Root `/main.py` starts the application from `/gateway_pico/main.py`.
 4. On first launch, unauthenticated users are redirected to `/setup`.
 5. Setup creates a password salt and repeated password hash in `settings.py`.
-6. Login generates runtime session and client tokens, stores only their hashes in memory, and sets short-lived cookies.
+6. Login generates runtime session and client tokens, stores only their hashes in memory, and sets session cookies.
 7. Protected routes require both cookies.
 8. The gateway serves local backend data through `gateway_pico/local_backend.py`.
 9. Metrics and recent request logs are shown in the browser.
 10. Rate limiting rejects clients that exceed the configured request window.
-11. Expired sessions are cleared and must log in again.
+11. Inactive expired sessions are cleared and must log in again.
 12. Repeated failed logins trigger a temporary lockout.
 13. `/health` and `/export` expose safe operational diagnostics.
 
 ## Security Positioning
 
-The firmware includes password setup, salted password hashing, runtime token-backed login, CSRF-protected forms, failed-login lockout, automatic session expiry, persistent audit logging, rate limiting, health/export diagnostics, and disabled discovery by default.
+The firmware includes password setup, salted password hashing, runtime token-backed login, CSRF-protected forms, failed-login lockout, automatic inactivity-based session expiry, persistent audit logging, rate limiting, health/export diagnostics, and disabled discovery by default.
 
 It does not claim to provide production HTTPS or physical tamper resistance on the Pico itself. For encrypted access, place the Pico behind a TLS reverse proxy, VPN, or router that terminates HTTPS. For physical security, use an enclosure and restrict access to USB data, BOOTSEL, reset, and SWD pins.
 
 ## Short Interview Explanation
 
 ```text
-I built a single-Pico LAN gateway application using MicroPython and a W5500 Ethernet module. On first launch it creates an admin account with a salted repeated password hash, then protects operational routes behind runtime session and client tokens that expire automatically. The app protects setup/login forms with CSRF tokens, locks out repeated failed logins, shows its current DHCP address, serves local backend diagnostics, records a rotating audit log, rate-limits clients, and keeps UDP discovery disabled by default. I also documented the boundaries clearly: HTTPS should be handled by a TLS reverse proxy or VPN, and a standard Pico cannot guarantee secure boot or flash encryption against physical attackers.
+I built a single-Pico LAN gateway application using MicroPython and a W5500 Ethernet module. On first launch it creates an admin account with a salted repeated password hash, then protects operational routes behind runtime session and client tokens that expire automatically after inactivity. The app protects setup/login forms with CSRF tokens, locks out repeated failed logins, shows its current DHCP address, serves local backend diagnostics, records a rotating audit log, rate-limits clients, and keeps UDP discovery disabled by default. I also documented the boundaries clearly: HTTPS should be handled by a TLS reverse proxy or VPN, and a standard Pico cannot guarantee secure boot or flash encryption against physical attackers.
 ```
