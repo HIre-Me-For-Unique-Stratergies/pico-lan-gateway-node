@@ -327,7 +327,7 @@ def dashboard_page(ip_address, discovery_message, metric_data, request_log, sess
 <h2>Gateway Metrics</h2>
 <section class="stats">%s</section>
 <h2>Session</h2>
-<section class="stats"><div class="stat"><span class="label">seconds remaining</span><span class="number">%s</span></div></section>
+<section class="stats"><div class="stat"><span class="label">idle seconds remaining</span><span id="session-seconds" class="number" data-seconds="%s">%s</span></div></section>
 <h2>Gateway Identity</h2>
 <section class="stats">%s</section>
 <h2>Discovery Message</h2>
@@ -336,6 +336,23 @@ def dashboard_page(ip_address, discovery_message, metric_data, request_log, sess
 %s
 </section>
 </main>
+<script>
+(function(){
+var node=document.getElementById("session-seconds");
+if(!node){return;}
+var remaining=parseInt(node.getAttribute("data-seconds"),10);
+if(isNaN(remaining)){return;}
+function render(){
+if(remaining<0){remaining=0;}
+node.textContent=remaining;
+}
+render();
+setInterval(function(){
+remaining-=1;
+render();
+},1000);
+})();
+</script>
 </body>
 </html>
 """ % (
@@ -343,6 +360,7 @@ def dashboard_page(ip_address, discovery_message, metric_data, request_log, sess
         page_style().replace("%", "%%"),
         ip_address,
         metric_rows(metric_data),
+        session_seconds,
         session_seconds,
         discovery_rows(discovery_message),
         discovery_message,
